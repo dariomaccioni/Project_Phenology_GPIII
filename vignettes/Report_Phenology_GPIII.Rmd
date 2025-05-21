@@ -6,7 +6,31 @@ output: html_document
 ---
 
 
-Download
+Search for all products in MODISTools and get the right one
+
+```{r}
+# load the library
+library("MODISTools")
+
+# list all available products
+# (only showing first part of the table for brevity)
+MODISTools::mt_products() |> 
+  head()
+
+View(mt_products())
+```
+
+Select from the chosen products the right bands, which are Greenup.Num_Modes_01 and Maturity.Num_Modes_01.
+
+```{r}
+# list bands for the MOD11A2
+# product (a land surface temperature product)
+MODISTools::mt_bands("MCD12Q2") |> 
+  head()
+
+View(mt_bands("MCD12Q2"))
+
+```
 
 
 ```{r}
@@ -23,9 +47,12 @@ phenology <- MODISTools::mt_subset(
   end = "2009-12-31",
   km_lr = 100,
   km_ab = 100,
-  site_name = "swiss",
+  site_name = "Adirondacks (North-Eastern United States",
   internal = TRUE,
   progress = FALSE)
+
+# print the dowloaded data
+head(subset)
 ```
 
 
