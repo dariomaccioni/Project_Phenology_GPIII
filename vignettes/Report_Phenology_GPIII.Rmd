@@ -32,13 +32,14 @@ View(mt_bands("MCD12Q2"))
 
 ```
 
+Download Greenup Phenology
 
 ```{r}
 # load libraries
 library(MODISTools)
 
 # download and save phenology data
-phenology <- MODISTools::mt_subset(
+Greenup <- MODISTools::mt_subset(
   product = "MCD12Q2",
   lat = 43.5,
   lon = 74.5,
@@ -47,7 +48,7 @@ phenology <- MODISTools::mt_subset(
   end = "2009-12-31",
   km_lr = 100,
   km_ab = 100,
-  site_name = "Adirondacks (North-Eastern United States",
+  site_name = "Adirondacks (North-Eastern United States)",
   internal = TRUE,
   progress = FALSE)
 
@@ -56,4 +57,98 @@ head(subset)
 ```
 
 
+Search for bands in land cover product
+
+```{r}
+# list bands for the MOD11A2
+# product (a land surface temperature product)
+MODISTools::mt_bands("MCD12Q1") |> 
+  head()
+
+View(mt_bands("MCD12Q1"))
+
+```
+
+
+Nur IGBF Klassen herunerladen
+```{r}
+# load libraries
+library(MODISTools)
+
+# download and save phenology data
+IGBP <- MODISTools::mt_subset(
+  product = "MCD12Q1",
+  lat = 43.5,
+  lon = 74.5,
+  band = "LC_Type1",
+  start = "2010-01-01",
+  end = "2010-12-31",
+  km_lr = 100,
+  km_ab = 100,
+  site_name = "Adirondacks (North-Eastern United States)",
+  internal = TRUE,
+  progress = FALSE)
+
+# print the dowloaded data
+head(subset)
+```
+
+Aus Data Frame Daten filtern (NA werte)
+
+```{r}
+
+library(dplyr)
+library(terra)
+# screening of data
+Greenup <- Greenup |>
+  mutate(
+    value = ifelse(value > 32656, NA, value),
+    value = as.numeric(format(as.Date("2010-01-01") + value, "%j")),
+    value = ifelse (value < 200, value, NA)
+  )
+```
+
+Data Frame zu Raster
+
+```{r}
+Greenup_raster <- MODISTools::mt_to_terra(
+  Greenup,
+  reproject = TRUE
+)
+```
+
+```{r}
+install.packages("tidyterra")
+```
+
+```{r}
+library(ggplot2)
+library(terra)
+
+ggplot() +
+  tidyterra::geom_spatraster(data = Greenup_raster) +
+  scale_fill_viridis_c(
+    na.value = NA,
+    name = "DOY"
+    ) +
+  theme_bw()
+```
+
+```{r}
+library(terra)
+library(ggplot2)
+library(tidyterra)  # nach Installation laden
+
+# Raster laden (nur wenn noch nicht passiert)
+# Greenup_raster <- rast("pfad/zur/datei.tif")
+
+ggplot() +
+  tidyterra::geom_spatraster(data = Greenup_raster) +
+  scale_fill_viridis_c(
+    na.value = NA,
+    name = "DOY"
+  ) +
+  theme_bw()
+
+```
 
