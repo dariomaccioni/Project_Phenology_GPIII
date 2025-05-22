@@ -96,9 +96,23 @@ head(subset)
 Aus Data Frame Daten filtern (NA werte)
 
 ```{r}
-
 library(dplyr)
 library(terra)
+```
+
+```{r}
+library(dplyr)
+
+Greenup <- Greenup |> 
+  mutate(
+    value = ifelse(value > 32656, NA, value),
+    doy = as.numeric(format(as.Date("2010-01-01") + value, "%j")),
+    doy = ifelse(doy < 200, doy, NA),
+    year = format(as.Date(calendar_date), "%Y")
+  )
+```
+
+```{r}
 # screening of data
 Greenup <- Greenup |>
   mutate(
@@ -117,14 +131,20 @@ Greenup_raster <- MODISTools::mt_to_terra(
 )
 ```
 
+
+Plot Raster File
+
 ```{r}
-install.packages("tidyterra")
+install.packages("tidyterra", type = "binary")
 ```
 
 ```{r}
 library(ggplot2)
 library(terra)
+library(tidyterra)
+```
 
+```{r}
 ggplot() +
   tidyterra::geom_spatraster(data = Greenup_raster) +
   scale_fill_viridis_c(
@@ -133,22 +153,66 @@ ggplot() +
     ) +
   theme_bw()
 ```
+LTM und SD berrechnung (--> weitere Literatur dazu finden)
+```{r}
+# Greenup: nur 2001–2009
+Greenup_ltm <- Greenup |>
+  filter(year >= 2001 & year <= 2009) |>
+  group_by(latitude, longitude) |>
+  summarise(
+    ltm = mean(doy, na.rm = TRUE),
+    sd = sd(doy, na.rm = TRUE),
+    .groups = "drop"
+  )
+```
+
+early Greenup
+```{r}
+# Greenup 2010
+Greenup_2009 <- Greenup |> filter(year == 2009)
+
+Greenup_eval <- Greenup_2009 |>
+  left_join(Greenup_ltm, by = c("latitude", "longitude")) |>
+  mutate(early_greenup = doy < (ltm - sd))
+```
+
+```{r}
+Greenup_eval_clean <- Greenup_eval |> 
+  dplyr::filter(!is.na(early_numeric))
+
+```
+
+Raster von LTM, SD und early Greenup
+
+```{r}
+Greenup_eval$early_numeric <- as.integer(Greenup_eval$early_greenup)
+```
 
 ```{r}
 library(terra)
-library(ggplot2)
-library(tidyterra)  # nach Installation laden
 
-# Raster laden (nur wenn noch nicht passiert)
-# Greenup_raster <- rast("pfad/zur/datei.tif")
+Early_Greenup_raster <- MODISTools::mt_to_terra(
+  Greenup_eval_clean,
+  reproject = TRUE
+)
+
+
+plot(Early_Greenup_raster, main = "Early Greenup 2010 (< LTM - SD)")
+
+```
+
+
+
+```{r}
+library(tidyterra)
+library(ggplot2)
 
 ggplot() +
-  tidyterra::geom_spatraster(data = Greenup_raster) +
-  scale_fill_viridis_c(
-    na.value = NA,
-    name = "DOY"
+  geom_spatraster(data = Early_Greenup_raster) +
+  scale_fill_manual(
+    values = c("white", "darkgreen"),  # 0 = white, 1 = darkgreen
+    name = "Early Greenup"
   ) +
   theme_bw()
-
 ```
 
