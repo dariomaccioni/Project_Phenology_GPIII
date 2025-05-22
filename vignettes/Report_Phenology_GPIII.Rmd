@@ -5,6 +5,7 @@ date: "`r Sys.Date()`"
 output: html_document
 ---
 
+# 1. Search for the right data in MODISTools
 
 Search for all products in MODISTools and get the right one
 
@@ -20,6 +21,8 @@ MODISTools::mt_products() |>
 View(mt_products())
 ```
 
+## 1.1 Search for right Band for Greenup
+
 Select from the chosen products the right bands, which are Greenup.Num_Modes_01 and Maturity.Num_Modes_01.
 
 ```{r}
@@ -31,6 +34,26 @@ MODISTools::mt_bands("MCD12Q2") |>
 View(mt_bands("MCD12Q2"))
 
 ```
+
+
+## 1.2 Search for right Band for Land Cover (IGBP)
+
+Search for bands in land cover product
+
+```{r}
+# list bands for the MOD11A2
+# product (a land surface temperature product)
+MODISTools::mt_bands("MCD12Q1") |> 
+  head()
+
+View(mt_bands("MCD12Q1"))
+
+```
+
+
+# 2. Download of the Data
+
+## 2.1 Greenup Phenology Data
 
 Download Greenup Phenology
 
@@ -57,20 +80,10 @@ head(subset)
 ```
 
 
-Search for bands in land cover product
-
-```{r}
-# list bands for the MOD11A2
-# product (a land surface temperature product)
-MODISTools::mt_bands("MCD12Q1") |> 
-  head()
-
-View(mt_bands("MCD12Q1"))
-
-```
-
+## 2.2 LC_Type1 (IGBP)
 
 Nur IGBF Klassen herunerladen
+
 ```{r}
 # load libraries
 library(MODISTools)
@@ -93,6 +106,23 @@ IGBP <- MODISTools::mt_subset(
 head(subset)
 ```
 
+
+
+# 3. Filter and Merge Broadleaf and Mixed Forest Data (LC_Type1 Band) with Greenup Data
+
+```{r}
+library(dplyr)
+Landcover_filtered <- IGBP |> 
+  filter(value %in% c(4, 5))
+```
+
+
+
+
+
+
+# 4. Screening of the Greenup Data
+
 Aus Data Frame Daten filtern (NA werte)
 
 ```{r}
@@ -112,16 +142,44 @@ Greenup <- Greenup |>
   )
 ```
 
+
+# 5. LTM and SD Calculation and Early/Late Greenup for 2009
+
+## 5.1 LTM and SD
+
 ```{r}
-# screening of data
-Greenup <- Greenup |>
-  mutate(
-    value = ifelse(value > 32656, NA, value),
-    value = as.numeric(format(as.Date("2010-01-01") + value, "%j")),
-    value = ifelse (value < 200, value, NA)
+# Greenup: nur 2001–2009
+Greenup_ltm <- Greenup |>
+  filter(year >= 2001 & year <= 2009) |>
+  group_by(latitude, longitude) |>
+  summarise(
+    ltm = mean(doy, na.rm = TRUE),
+    sd = sd(doy, na.rm = TRUE),
+    .groups = "drop"
   )
 ```
 
+## 5.2 Early/Late Greenup
+
+```{r}
+# Greenup 2010
+Greenup_2009 <- Greenup |> filter(year == 2009)
+
+Greenup_eval <- Greenup_2009 |>
+  left_join(Greenup_ltm, by = c("latitude", "longitude")) |>
+  mutate(early_greenup = doy < (ltm - sd))
+```
+
+```{r}
+Greenup_eval_clean <- Greenup_eval |> 
+  dplyr::filter(!is.na(early_numeric))
+
+```
+
+
+# 6. Creating Raster out of the Data Frames generated
+
+## 6.1 Raster Greenup
 Data Frame zu Raster
 
 ```{r}
@@ -131,6 +189,34 @@ Greenup_raster <- MODISTools::mt_to_terra(
 )
 ```
 
+```{r}
+Greenup_eval$early_numeric <- as.integer(Greenup_eval$early_greenup)
+```
+
+## 6.2 Raster Early Greenup
+
+```{r}
+library(terra)
+
+Early_Greenup_raster <- MODISTools::mt_to_terra(
+  Greenup_eval_clean,
+  reproject = TRUE
+)
+
+
+plot(Early_Greenup_raster, main = "Early Greenup 2010 (< LTM - SD)")
+
+```
+
+# 6.3 Raster Late Greenup
+
+
+
+
+
+# 7. Plot the Raster
+
+## 7.1 Plot Greenup for specified Locations based on Landcover
 
 Plot Raster File
 
@@ -153,55 +239,10 @@ ggplot() +
     ) +
   theme_bw()
 ```
-LTM und SD berrechnung (--> weitere Literatur dazu finden)
-```{r}
-# Greenup: nur 2001–2009
-Greenup_ltm <- Greenup |>
-  filter(year >= 2001 & year <= 2009) |>
-  group_by(latitude, longitude) |>
-  summarise(
-    ltm = mean(doy, na.rm = TRUE),
-    sd = sd(doy, na.rm = TRUE),
-    .groups = "drop"
-  )
-```
-
-early Greenup
-```{r}
-# Greenup 2010
-Greenup_2009 <- Greenup |> filter(year == 2009)
-
-Greenup_eval <- Greenup_2009 |>
-  left_join(Greenup_ltm, by = c("latitude", "longitude")) |>
-  mutate(early_greenup = doy < (ltm - sd))
-```
-
-```{r}
-Greenup_eval_clean <- Greenup_eval |> 
-  dplyr::filter(!is.na(early_numeric))
-
-```
-
-Raster von LTM, SD und early Greenup
-
-```{r}
-Greenup_eval$early_numeric <- as.integer(Greenup_eval$early_greenup)
-```
-
-```{r}
-library(terra)
-
-Early_Greenup_raster <- MODISTools::mt_to_terra(
-  Greenup_eval_clean,
-  reproject = TRUE
-)
 
 
-plot(Early_Greenup_raster, main = "Early Greenup 2010 (< LTM - SD)")
 
-```
-
-
+## 7.2 Plot Early Greenup
 
 ```{r}
 library(tidyterra)
@@ -216,3 +257,9 @@ ggplot() +
   theme_bw()
 ```
 
+
+## 7.3 Plot Late Greenup
+
+
+
+## 7.4 Boxplot Greenup compared to differences in Altitude
