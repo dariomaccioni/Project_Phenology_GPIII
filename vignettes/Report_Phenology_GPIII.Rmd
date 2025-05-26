@@ -15,10 +15,8 @@ library("MODISTools")
 
 # list all available products
 # (only showing first part of the table for brevity)
-MODISTools::mt_products() |> 
-  head()
+MODIS_products <- MODISTools::mt_products()
 
-View(mt_products())
 ```
 
 ## 1.1 Search for right Band for Greenup
@@ -28,10 +26,14 @@ Select from the chosen products the right bands, which are Greenup.Num_Modes_01 
 ```{r}
 # list bands for the MOD11A2
 # product (a land surface temperature product)
-MODISTools::mt_bands("MCD12Q2") |> 
-  head()
+MODIS_bands_Greenup <- MODISTools::mt_bands("MCD12Q2")
 
-View(mt_bands("MCD12Q2"))
+```
+
+```{r}
+# list bands for the MOD11A2
+# product (a land surface temperature product)
+MODIS_bands_LC <- MODISTools::mt_bands("VNP22Q2")
 
 ```
 
@@ -43,10 +45,7 @@ Search for bands in land cover product
 ```{r}
 # list bands for the MOD11A2
 # product (a land surface temperature product)
-MODISTools::mt_bands("MCD12Q1") |> 
-  head()
-
-View(mt_bands("MCD12Q1"))
+MODIS_bands_Landcover <- MODISTools::mt_bands("MCD12Q1")
 
 ```
 
